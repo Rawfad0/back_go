@@ -6,6 +6,7 @@ import (
 	"os"
 	"io"
 	"bufio"
+	"strings"
 )
 
 func bool2int(bool_value bool) (int) {
@@ -22,14 +23,14 @@ func main() {
 	var cFlag = flag.Bool("c", false, "-c - подсчитать количество встречаний строки во входных данных. Вывести это число перед строкой отделив пробелом.")
 	var dFlag = flag.Bool("d", false, "-d - вывести только те строки, которые повторились во входных данных.")
 	var uFlag = flag.Bool("u", false, "-u - вывести только те строки, которые не повторились во входных данных.")
-	// var iFlag = flag.Bool("i", false, "-i - не учитывать регистр букв.")
-	// var fFlag = flag.Int("f", 0, "-f num_fields - не учитывать первые num_fields полей в строке. Полем в строке является непустой набор символов отделённый пробелом.")
-	// var sFlag = flag.Int("s", 0, "-s num_chars - не учитывать первые num_chars символов в строке. При использовании вместе c параметром -f учитываются первые символы после num_fields полей (не учитывая пробел-разделитель после последнего поля).")
+	var iFlag = flag.Bool("i", false, "-i - не учитывать регистр букв.")
+	var fFlag = flag.Int("f", 0, "-f num_fields - не учитывать первые num_fields полей в строке. Полем в строке является непустой набор символов отделённый пробелом.")
+	var sFlag = flag.Int("s", 0, "-s num_chars - не учитывать первые num_chars символов в строке. При использовании вместе c параметром -f учитываются первые символы после num_fields полей (не учитывая пробел-разделитель после последнего поля).")
 	flag.Parse()
 
 	// Проверка на количество взаимозаменяемых флагов
 	var flag_sum int = bool2int(*cFlag) + bool2int(*dFlag) + bool2int(*uFlag)
-	if flag_sum != 1 {
+	if flag_sum > 1 {
 		fmt.Printf("Usage:\nuniq [-c | -d | -u] [-i] [-f num] [-s chars] [input_file [output_file]]\n\n")
 		os.Exit(1)
 	}
@@ -69,7 +70,8 @@ func main() {
 	}
 
 	// Словарь строк
-	lines := map[string]int{}
+	lineOrig := map[string]string{}	// обрезанная строка в нижнем регистре : первая встреча этой строки
+	lineCounter := map[string]int{}	// обрезанная строка в нижнем регистре : количество
 
 	// Чтение с входного потока
 	buf := bufio.NewScanner(in)
@@ -79,28 +81,54 @@ func main() {
 		}
 		// fmt.Println(buf.Text())
 		line := buf.Text()
-		_, lineExist := lines[line]
+
+		// Обработка строки флагами -i -f -s
+		lineMod := line
+		if *iFlag {
+			lineMod = strings.ToLower(line)
+		}
+		if *fFlag > 0 {
+			lineModSplit := strings.Split(lineMod, " ")
+			if lineSliceLen := len(lineModSplit); lineSliceLen > *fFlag {
+				lineMod = strings.Join(lineModSplit[*fFlag:], " ")
+			} else if lineSliceLen > 1 {
+				lineMod = strings.Join(lineModSplit[lineSliceLen:], " ")
+			} else {
+				lineMod = strings.Join(lineModSplit, " ")
+			}
+		}
+		if *sFlag > 0 {
+			if lineLen := len(lineMod); lineLen > *sFlag {
+				lineMod = lineMod[*sFlag:]
+			} else if lineLen > 1 {
+				lineMod = lineMod[lineLen:]
+			}
+		}
+
+		_, lineExist := lineOrig[lineMod]
 		if !lineExist {
-			lines[line] = 1
+			lineOrig[lineMod] = line
+			lineCounter[lineMod] = 1
+			// fmt.Println(line, 1, lineExist, !lineExist)
 		} else {
-			lines[line]++
+			lineCounter[lineMod]++
 		}
 		// fmt.Fprintln(out, buf.Text())
 	}
 
 	// Вывод в выходной поток
-	for key, value := range lines {
+	for key, value := range lineCounter {
 		if *cFlag {
-			fmt.Fprintln(out, value, key)	// с количеством строк
+			fmt.Fprintln(out, value, lineOrig[key])		// с количеством строк
 		}
 		if *dFlag && (value > 1) {
-			fmt.Fprintln(out, key)			// только строки, встретившиеся более 1 раза
+			fmt.Fprintln(out, lineOrig[key])			// только строки, встретившиеся более 1 раза
 		}
 		if *uFlag && (value == 1) {
-			fmt.Fprintln(out, key)			// только строки, встретившиеся ровно 1 раз
+			fmt.Fprintln(out, lineOrig[key])			// только строки, встретившиеся ровно 1 раз
 		}
 		if flag_sum == 0 {
-			fmt.Fprintln(out, key)			// без флагов, все уникальные строки
+			fmt.Fprintln(out, lineOrig[key])			// без флагов, все уникальные строки
 		}
 	}
 
