@@ -73,7 +73,7 @@ func main() {
 	lineOrig := map[string]string{}	// обрезанная строка в нижнем регистре : первая встреча этой строки
 	lineCounter := map[string]int{}	// обрезанная строка в нижнем регистре : количество
 
-	// Чтение с входного потока
+	// Чтение с входного потока и обработка строк
 	buf := bufio.NewScanner(in)
 	for i := 0; true; i++ {
 		if !buf.Scan() {
@@ -98,10 +98,11 @@ func main() {
 			}
 		}
 		if *sFlag > 0 {
+			lineModSplit := strings.Split(lineMod, "")
 			if lineLen := len(lineMod); lineLen > *sFlag {
-				lineMod = lineMod[*sFlag:]
-			} else if lineLen > 1 {
-				lineMod = lineMod[lineLen:]
+				lineMod = strings.Join(lineModSplit[*sFlag:], "")
+			} else {
+				lineMod = strings.Join(lineModSplit[lineLen:], "")
 			}
 		}
 
